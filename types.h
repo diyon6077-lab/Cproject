@@ -22,7 +22,7 @@
 #define NUM_SQUARES        40
 #define NUM_PROPERTIES     28   /* 22 colour props + 4 railways + 2 utilities */
 #define NUM_GROUPS         8    /* Brown ... Dark Blue (Section 1.1.1) */
-#define MAX_ROUNDS         500  /* Rule 15 */
+#define MAX_ROUNDS         10  /* Rule 15 */
 #define STARTING_CASH      30000
 #define GO_MONEY           2000
 #define BAIL_AMOUNT        300  /* Rule 13 */
@@ -30,6 +30,12 @@
 #define AUCTION_INCREMENT  250  /* Rule 6 / Rule-LK 20 */
 #define MAX_HOUSES         4    /* Rule 9 */
 #define NUM_NATIONAL_CARDS 20   /* Appendix A */
+
+/* ASSUMPTION: the spec names "Income Tax" as a square (Table 1, Rule
+ * 11) but never states the amount owed anywhere in the document.
+ * Placeholder value -- confirm the real figure with the module
+ * coordinator and document your choice in the report. */
+#define INCOME_TAX_AMOUNT 1000
 
 /* ------------------------------------------------------------
  * ENUMERATIONS
@@ -101,6 +107,33 @@ typedef enum {
     DEV_FOUR_HOUSES,
     DEV_HOTEL
 } DevelopmentLevel;
+
+/* The 20 National Event Cards (Appendix A). EVENT_NONE means "no
+ * timed personal effect currently active" -- used on Player, not as
+ * a real card. One value per row of the Appendix A table. */
+typedef enum {
+    EVENT_NONE,
+    EVENT_TOURISM_HYPE,
+    EVENT_FUEL_SHORTAGE,
+    EVENT_HEAVY_FLOODS,
+    EVENT_POLITICAL_RALLY,
+    EVENT_STOCK_MARKET_RISE,
+    EVENT_ECONOMIC_DOWNTURN,
+    EVENT_HOUSING_SUBSIDY,
+    EVENT_INTEREST_RATE_CUT,
+    EVENT_INTEREST_RATE_INCREASE,
+    EVENT_TAX_AMNESTY,
+    EVENT_POWER_FAILURE,
+    EVENT_FOREIGN_FUNDING,
+    EVENT_PORT_EXPANSION,
+    EVENT_FESTIVAL_SEASON,
+    EVENT_LABOUR_STRIKE,
+    EVENT_INSURANCE_DISCOUNT,
+    EVENT_PROPERTY_REVALUATION,
+    EVENT_CURRENCY_DEPRECIATION,
+    EVENT_GOVERNMENT_GRANT,
+    EVENT_NATIONAL_DISASTER
+} NationalEventType;
 
 /* ------------------------------------------------------------
  * BOARD STRUCTURES
@@ -199,6 +232,13 @@ typedef struct {
     int  numOwnedProperties;
 
     Loan loan;               /* only one active loan at a time (Rule-LK) */
+
+    /* Timed personal effect from the last National Event Card this
+     * player drew (Appendix A intro: "applicable to the player who
+     * drew the card"). EVENT_NONE = no active effect. Only one can
+     * be active at a time -- drawing a new card overwrites it. */
+    NationalEventType activeEventEffect;
+    int                eventEffectExpiryRound;   /* absolute round it ends */
 } Player;
 
 /* ------------------------------------------------------------
@@ -237,6 +277,8 @@ typedef struct {
 typedef struct {
     char name[40];
     char effectDescription[100];
+    NationalEventType type;   /* which effect this card triggers -- the
+                                * dispatcher (events.c) switches on this */
     /* You can add typed fields here later once you decide how
      * you want to apply each effect programmatically, e.g.:
      * int  durationRounds;
